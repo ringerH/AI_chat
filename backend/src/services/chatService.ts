@@ -6,14 +6,9 @@ import {
   failAssistantMessage
 } from "../persistence/repositories/messageRepo";
 import { createConversation } from "../persistence/repositories/conversationRepo";
-import { callLLM } from "../llm/llmClient";
+import { llm } from "../llm";
 
-/**
- * Milestone 3
- * - session ownership
- * - idempotent message posting
- * - failure-first LLM handling
- */
+
 export async function handleUserMessage(
   sessionId: string | undefined,
   text: string,
@@ -21,11 +16,11 @@ export async function handleUserMessage(
 ): Promise<string> {
 
   const result = await withTransaction(async (client) => {
-    // ensure conversation exists
+    
     const conversationId =
       sessionId ?? (await createConversation(client));
 
-    // idempotent user message insert
+    
     const userMessageId = await insertUserMessage(
       client,
       conversationId,
@@ -33,7 +28,7 @@ export async function handleUserMessage(
       clientMessageId
     );
 
-    // retry detected → do nothing further
+    
     if (!userMessageId) {
       return {
         conversationId,
@@ -41,7 +36,7 @@ export async function handleUserMessage(
       };
     }
 
-    // create assistant placeholder ONLY once
+    
     const assistantMessageId = await insertAssistantPlaceholder(
       client,
       conversationId,
@@ -56,22 +51,34 @@ export async function handleUserMessage(
 
   const { conversationId, assistantMessageId } = result;
 
-  // IMPORTANT:
-  // If this was a retry, assistantMessageId will be null
+  
   if (!assistantMessageId) {
     return conversationId;
   }
 
-  // LLM invocation happens OUTSIDE transaction
+  
   try {
-    const reply = await callLLM(text);
+    const response = await llm.generate({
+      prompt: text
+    });
 
     await withTransaction(client =>
-      completeAssistantMessage(client, assistantMessageId, reply)
+      completeAssistantMessage(
+        client,
+        assistantMessageId,
+        response.text
+      )
     );
   } catch (err: any) {
+    const message =
+      err instanceof Error ? err.message : "Unknown LLM error";
+
     await withTransaction(client =>
-      failAssistantMessage(client, assistantMessageId, err.message)
+      failAssistantMessage(
+        client,
+        assistantMessageId,
+        message
+      )
     );
   }
 

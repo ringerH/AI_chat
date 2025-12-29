@@ -34,4 +34,3 @@ chatRouter.post("/message", async (req, res) => {
   res.json({ sessionId: conversationId });
 
 });
-console.log("✅ chatRouter loaded");

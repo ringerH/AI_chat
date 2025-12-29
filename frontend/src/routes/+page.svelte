@@ -1,13 +1,14 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
   import MessageList from "../ui/chat/MessageList.svelte";
+  import InputBar from "../ui/chat/InputBar.svelte";
   import { conversation } from "../state/conversationStore";
   import { sessionId } from "../state/sessionStore";
   import { postMessage, fetchHistory } from "../api/chat";
 
-  let input = "";
   let messages = [];
   let poller: any = null;
+  let sending = false;
 
   conversation.subscribe(v => messages = v);
 
@@ -17,20 +18,15 @@
     );
   }
 
-  async function send() {
-    if (!input.trim()) return;
+  async function send(text: string) {
+    if (!text.trim() || sending) return;
 
-    await postMessage(input);
-    input = "";
+    sending = true;
+    await postMessage(text);
+    sending = false;
 
     await fetchHistory();
     startPolling();
-  }
-
-  function newConversation() {
-    stopPolling();
-    sessionId.set(null);
-    conversation.set([]);
   }
 
   function startPolling() {
@@ -38,10 +34,7 @@
 
     poller = setInterval(async () => {
       await fetchHistory();
-
-      if (!hasPendingAssistant()) {
-        stopPolling();
-      }
+      if (!hasPendingAssistant()) stopPolling();
     }, 1500);
   }
 
@@ -52,33 +45,38 @@
     }
   }
 
+  function newConversation() {
+    stopPolling();
+    sessionId.set(null);
+    conversation.set([]);
+  }
+
   onMount(async () => {
     if (!sessionId) return;
-
     await fetchHistory();
-
-    if (hasPendingAssistant()) {
-      startPolling();
-    }
+    if (hasPendingAssistant()) startPolling();
   });
 
-  onDestroy(() => {
-    stopPolling();
-  });
+  onDestroy(stopPolling);
 </script>
 
-<div style="max-width: 600px; margin: auto;">
-  <h3>Chat</h3>
-
+<div class="page">
   <MessageList {messages} />
 
-  <div style="margin-top: 1rem;">
-    <input
-      bind:value={input}
-      placeholder="Type a message"
-      on:keydown={(e) => e.key === "Enter" && send()}
-    />
-    <button on:click={send}>Send</button>
-    <button on:click={newConversation}>New Conversation</button>
-  </div>
+  <InputBar
+    onSend={send}
+    disabled={sending}
+    onNewConversation={newConversation}
+  />
 </div>
+
+<style>
+  .page {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    max-width: 720px;
+    margin: 0 auto;
+    background: #deded4;
+  }
+</style>

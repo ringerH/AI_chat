@@ -15,10 +15,19 @@ export async function createMessage(
     conversationId: string
   ) {
     const res = await client.query(
-      `SELECT id, sender, text, created_at
-       FROM messages
-       WHERE conversation_id = $1
-       ORDER BY created_at ASC`,
+      `
+      SELECT
+        id,
+        sender,
+        text,
+        status,
+        error,
+        reply_to,
+        client_message_id
+      FROM messages
+      WHERE conversation_id = $1
+      ORDER BY created_at ASC
+      `,
       [conversationId]
     );
   
