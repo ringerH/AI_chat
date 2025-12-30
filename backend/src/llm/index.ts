@@ -1,5 +1,3 @@
-import { LLMAdapter } from "./llmAdapter";
-import { MockLLMProvider } from "./providers/mock";
+import { GeminiProvider } from "./providers/gemini";
 
-// Swap provider here ONLY
-export const llm: LLMAdapter = new MockLLMProvider();
+export const llm = new GeminiProvider();
