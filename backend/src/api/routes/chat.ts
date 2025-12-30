@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { getConversationHistory } from "../../services/messageService";
 import { handleUserMessage } from "../../services/chatService";
-import { createConversation } from "../../persistence/repositories/conversationRepo";
 
 export const chatRouter = Router();
 
@@ -18,19 +17,28 @@ chatRouter.get("/history/:sessionId", async (req, res) => {
 
 
 chatRouter.post("/message", async (req, res) => {
-  const { message, sessionId } = req.body;
+  const { message, sessionId, clientMessageId } = req.body;
 
   if (!message || !message.trim()) {
     res.status(400).json({ error: "Invalid message" });
     return;
   }
 
-  const conversationId =
-    await handleUserMessage(
+  if (!clientMessageId) {
+    res.status(400).json({ error: "clientMessageId is required" });
+    return;
+  }
+
+  try {
+    const conversationId = await handleUserMessage(
       sessionId,
-      message.trim()
+      message.trim(),
+      clientMessageId
     );
 
-  res.json({ sessionId: conversationId });
-
+    res.json({ sessionId: conversationId });
+  } catch (e) {
+    console.error("Message handling failed:", e);
+    res.status(500).json({ error: "Failed to process message" });
+  }
 });

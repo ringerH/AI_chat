@@ -1,8 +1,9 @@
 import { get } from "svelte/store";
 import { sessionId } from "../state/sessionStore";
 import { conversation } from "../state/conversationStore";
+import type { Message } from "../state/conversationStore";
 
-export async function postMessage(text: string) {
+export async function postMessage(text: string, predefinedReply?: string) {
   if (!text || !text.trim()) {
     throw new Error("Cannot send empty message");
   }
@@ -12,7 +13,8 @@ export async function postMessage(text: string) {
   const body = {
     message: text.trim(),
     sessionId: get(sessionId),
-    clientMessageId
+    clientMessageId,
+    predefinedReply // NEW: Include predefined reply if provided
   };
 
   const res = await fetch("/chat/message", {
@@ -54,9 +56,14 @@ export async function fetchHistory() {
   }
 
   const data = await res.json();
-  conversation.set(data.messages);
-  return data.messages;
+  const dbMessages: Message[] = data.messages;
+
+  // Always use DB as source of truth
+  conversation.set(dbMessages);
+
+  return dbMessages;
 }
+
 export async function retryMessage(
   text: string,
   clientMessageId: string
