@@ -12,22 +12,22 @@ export class GeminiProvider implements LLMAdapter {
     const start = Date.now();
 
     try {
-      // 1. Initialize model with System Instructions if provided
+     
       const model = genAI.getGenerativeModel({
         model: "gemini-2.5-flash-lite",
         systemInstruction: request.system ? { role: "system", parts: [{ text: request.system }] } : undefined
       });
 
-      // 2. Map history roles ('assistant' -> 'model') and format for SDK
+      
       const history: Content[] = (request.history ?? []).map((msg) => ({
         role: msg.role === "assistant" ? "model" : "user",
         parts: [{ text: msg.content }],
       }));
 
-      // 3. Start a chat session with the historical context
+      
       const chatSession = model.startChat({ history });
 
-      // 4. Send the new prompt
+      
       const result = await chatSession.sendMessage(request.prompt);
       const text = result.response.text();
 

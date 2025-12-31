@@ -51,7 +51,7 @@ export async function handleUserMessage(
   sessionId: string | undefined,
   text: string,
   clientMessageId: string
-): Promise<string> {
+): Promise<{ sessionId: string; reply: string | null }> {
 
   const result = await withTransaction(async (client) => {
     const conversationId =
@@ -86,7 +86,7 @@ export async function handleUserMessage(
   const { conversationId, assistantMessageId } = result;
 
   if (!assistantMessageId) {
-    return conversationId;
+    return { sessionId: conversationId, reply: null };
   }
 
   const history = await withTransaction(async (client) => {
@@ -94,7 +94,7 @@ export async function handleUserMessage(
       client,
       conversationId
     );
-  
+
     return messages
       .filter(
         (m: DBMessage) =>
@@ -108,12 +108,16 @@ export async function handleUserMessage(
       }));
   });
 
+  let replyText: string | null = null;
+
   try {
     const response = await llm.generate({
       system: SYSTEM_PROMPT,
       history,
       prompt: text
     });
+
+    replyText = response.text;
 
     await withTransaction(client =>
       completeAssistantMessage(
@@ -135,5 +139,8 @@ export async function handleUserMessage(
     );
   }
 
-  return conversationId;
+  return {
+    sessionId: conversationId,
+    reply: replyText
+  };
 }

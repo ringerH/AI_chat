@@ -15,7 +15,6 @@ chatRouter.get("/history/:sessionId", async (req, res) => {
   }
 });
 
-
 chatRouter.post("/message", async (req, res) => {
   const { message, sessionId, clientMessageId } = req.body;
 
@@ -30,13 +29,17 @@ chatRouter.post("/message", async (req, res) => {
   }
 
   try {
-    const conversationId = await handleUserMessage(
-      sessionId,
-      message.trim(),
-      clientMessageId
-    );
+    const { sessionId: conversationId, reply } =
+      await handleUserMessage(
+        sessionId,
+        message.trim(),
+        clientMessageId
+      );
 
-    res.json({ sessionId: conversationId });
+    res.json({
+      sessionId: conversationId,
+      reply
+    });
   } catch (e) {
     console.error("Message handling failed:", e);
     res.status(500).json({ error: "Failed to process message" });

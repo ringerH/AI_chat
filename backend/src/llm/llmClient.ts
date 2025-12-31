@@ -61,7 +61,7 @@ export async function handleUserQuery(userQuery: string): Promise<string> {
   try {
     const response = await llm.generate(request);
 
-    // Save both the user's question and the LLM's answer to history
+    
     chatHistory.addMessage("user", userQuery);
     chatHistory.addMessage("assistant", response.text);
 

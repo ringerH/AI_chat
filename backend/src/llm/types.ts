@@ -4,19 +4,13 @@ export type LLMMessage = {
 };
 
 export type LLMRequest = {
-  /**
-   * Fixed system instruction (optional)
-   */
+  
   system?: string;
 
-  /**
-   * Bounded conversation history
-   */
+ 
   history?: LLMMessage[];
 
-  /**
-   * Current user prompt
-   */
+ 
   prompt: string;
 };
 

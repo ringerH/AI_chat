@@ -148,9 +148,7 @@
     overflow: hidden;
   }
 
-  /* ZOOM EFFECT: When in focus mode, we scale up the entire 
-     inner content to feel "zoomed in" on the two messages.
-  */
+  
   .page.focus-active :global(.messages) {
     transform: scale(1.08);
     transform-origin: bottom center;
@@ -218,7 +216,7 @@
       box-shadow: none;
     }
     
-    /* Disable zoom on mobile for better usability */
+    
     .page.focus-active :global(.messages) {
       transform: none;
     }

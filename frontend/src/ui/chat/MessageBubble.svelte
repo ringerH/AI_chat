@@ -35,11 +35,11 @@
     padding: 0.75rem 1rem;
     border-radius: 12px;
     line-height: 1.4;
-    font-size: 0.95rem; /* Standard Size */
+    font-size: 0.95rem; 
     transition: all 0.3s ease;
   }
 
-  /* Focus Mode Styling: Increases text size and padding */
+  
   .bubble.focus-zoom {
     font-size: 1.15rem; 
     padding: 1rem 1.25rem;
