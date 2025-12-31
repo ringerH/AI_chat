@@ -3,9 +3,23 @@ import { sessionId } from "../state/sessionStore";
 import { conversation } from "../state/conversationStore";
 import type { Message } from "../state/conversationStore";
 
+export class NetworkError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "NetworkError";
+  }
+}
+
+export class ValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ValidationError";
+  }
+}
+
 export async function postMessage(text: string, predefinedReply?: string) {
   if (!text || !text.trim()) {
-    throw new Error("Cannot send empty message");
+    throw new ValidationError("Cannot send empty message");
   }
 
   const clientMessageId = crypto.randomUUID();
@@ -14,19 +28,42 @@ export async function postMessage(text: string, predefinedReply?: string) {
     message: text.trim(),
     sessionId: get(sessionId),
     clientMessageId,
-    predefinedReply // NEW: Include predefined reply if provided
+    predefinedReply
   };
 
-  const res = await fetch("/chat/message", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(body)
-  });
+  let res: Response;
+  
+  try {
+    res = await fetch("/chat/message", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(30000) // 30 second timeout
+    });
+  } catch (error: any) {
+    if (error.name === "AbortError" || error.name === "TimeoutError") {
+      throw new NetworkError("Request timed out. Please try again.");
+    }
+    if (error.message?.includes("Failed to fetch")) {
+      throw new NetworkError("Network error. Please check your connection.");
+    }
+    throw new NetworkError("Unable to send message. Please try again.");
+  }
 
   if (!res.ok) {
-    throw new Error("Failed to send message");
+    const errorData = await res.json().catch(() => ({}));
+    
+    if (res.status === 400) {
+      throw new ValidationError(errorData.error || "Invalid message");
+    }
+    
+    if (res.status >= 500) {
+      throw new NetworkError("Server error. Please try again later.");
+    }
+    
+    throw new NetworkError("Failed to send message");
   }
 
   const data = await res.json();
@@ -46,22 +83,38 @@ export async function postMessage(text: string, predefinedReply?: string) {
  * Fetch conversation history.
  * DB is the source of truth.
  */
-export async function fetchHistory() {
+export async function fetchHistory(): Promise<Message[]> {
   const sid = get(sessionId);
   if (!sid) return [];
 
-  const res = await fetch(`/chat/history/${sid}`);
-  if (!res.ok) {
-    throw new Error("Failed to fetch history");
+  try {
+    const res = await fetch(`/chat/history/${sid}`, {
+      signal: AbortSignal.timeout(10000) // 10 second timeout
+    });
+
+    if (!res.ok) {
+      if (res.status === 404) {
+        throw new Error("Conversation not found");
+      }
+      throw new Error("Failed to fetch history");
+    }
+
+    const data = await res.json();
+    const dbMessages: Message[] = data.messages;
+
+    // Always use DB as source of truth
+    conversation.set(dbMessages);
+
+    return dbMessages;
+  } catch (error: any) {
+    if (error.name === "AbortError" || error.name === "TimeoutError") {
+      throw new NetworkError("Request timed out while loading history");
+    }
+    if (error.message?.includes("Failed to fetch")) {
+      throw new NetworkError("Network error while loading history");
+    }
+    throw error;
   }
-
-  const data = await res.json();
-  const dbMessages: Message[] = data.messages;
-
-  // Always use DB as source of truth
-  conversation.set(dbMessages);
-
-  return dbMessages;
 }
 
 export async function retryMessage(
@@ -74,15 +127,23 @@ export async function retryMessage(
     clientMessageId // SAME ID → idempotent
   };
 
-  const res = await fetch("/chat/message", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body)
-  });
+  try {
+    const res = await fetch("/chat/message", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(30000)
+    });
 
-  if (!res.ok) {
-    throw new Error("Retry failed");
+    if (!res.ok) {
+      throw new Error("Retry failed");
+    }
+
+    return res.json();
+  } catch (error: any) {
+    if (error.name === "AbortError" || error.name === "TimeoutError") {
+      throw new NetworkError("Retry timed out. Please try again.");
+    }
+    throw new NetworkError("Retry failed. Please try again.");
   }
-
-  return res.json();
 }

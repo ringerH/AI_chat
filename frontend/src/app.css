@@ -22,7 +22,7 @@ body {
   line-height: 1.6;
 }
 
-/* Subtle texture overlay */
+
 body::before {
   content: "";
   position: fixed;
@@ -40,7 +40,7 @@ body::before {
   opacity: 0.5;
 }
 
-/* Focus visible styles for accessibility */
+
 :focus-visible {
   outline: 2px solid #0066cc;
   outline-offset: 2px;
@@ -52,12 +52,12 @@ input:focus-visible {
   outline-offset: 2px;
 }
 
-/* Smooth scrolling */
+
 html {
   scroll-behavior: smooth;
 }
 
-/* Selection colors */
+
 ::selection {
   background: #0066cc;
   color: white;
