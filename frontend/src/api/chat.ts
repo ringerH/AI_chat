@@ -3,6 +3,8 @@ import { sessionId } from "../state/sessionStore";
 import { conversation } from "../state/conversationStore";
 import type { Message } from "../state/conversationStore";
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || ''; 
+
 export class NetworkError extends Error {
   constructor(message: string) {
     super(message);
@@ -34,13 +36,14 @@ export async function postMessage(text: string, predefinedReply?: string) {
   let res: Response;
   
   try {
-    res = await fetch("/chat/message", {
+    
+    res = await fetch(`${API_BASE}/chat/message`, { 
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(30000) // 30 second timeout
+      signal: AbortSignal.timeout(30000)
     });
   } catch (error: any) {
     if (error.name === "AbortError" || error.name === "TimeoutError") {
@@ -68,7 +71,6 @@ export async function postMessage(text: string, predefinedReply?: string) {
 
   const data = await res.json();
 
-  // First message → backend creates conversation
   if (!get(sessionId)) {
     sessionId.set(data.sessionId);
   }
@@ -79,17 +81,14 @@ export async function postMessage(text: string, predefinedReply?: string) {
   };
 }
 
-/**
- * Fetch conversation history.
- * DB is the source of truth.
- */
 export async function fetchHistory(): Promise<Message[]> {
   const sid = get(sessionId);
   if (!sid) return [];
 
   try {
-    const res = await fetch(`/chat/history/${sid}`, {
-      signal: AbortSignal.timeout(10000) // 10 second timeout
+    
+    const res = await fetch(`${API_BASE}/chat/history/${sid}`, {
+      signal: AbortSignal.timeout(10000)
     });
 
     if (!res.ok) {
@@ -102,7 +101,6 @@ export async function fetchHistory(): Promise<Message[]> {
     const data = await res.json();
     const dbMessages: Message[] = data.messages;
 
-    // Always use DB as source of truth
     conversation.set(dbMessages);
 
     return dbMessages;
@@ -124,11 +122,12 @@ export async function retryMessage(
   const body = {
     message: text,
     sessionId: get(sessionId),
-    clientMessageId // SAME ID → idempotent
+    clientMessageId
   };
 
   try {
-    const res = await fetch("/chat/message", {
+    
+    const res = await fetch(`${API_BASE}/chat/message`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
